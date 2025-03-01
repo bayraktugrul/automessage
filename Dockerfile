@@ -8,13 +8,13 @@ RUN go mod download
 
 COPY . .
 
-RUN go build
+RUN go build -o automsg ./main.go
 
 FROM alpine:latest
 
 RUN apk --no-cache add ca-certificates tzdata
 
-WORKDIR /root/
+WORKDIR /app
 
 COPY --from=builder /app/automsg .
 

@@ -11,8 +11,8 @@ CREATE TABLE IF NOT EXISTS messages (
 CREATE INDEX IF NOT EXISTS idx_messages_is_sent ON messages(is_sent);
 CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at);
 
-INSERT INTO messages (content, recipient_phone) VALUES
-('test message 1', '+905551234567'),
-('test message 2', '+905551234568'),
-('test message 3', '+905551234569'),
-('test message 4', '+905551234570');
+INSERT INTO messages (content, recipient_phone, is_sent) VALUES
+('test message 1', '+905551234567', FALSE),
+('test message 2', '+905551234568', TRUE),
+('test message 3', '+905551234569', FALSE),
+('test message 4', '+905551234570', FALSE);

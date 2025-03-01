@@ -1,27 +1,27 @@
-package handler
+package controller
 
 import (
 	"automsg/pkg/errors"
-	"automsg/pkg/model"
+	"automsg/pkg/model/request"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
 
-type messageHandler struct {
+type messageController struct {
 }
 
-type MessageHandler interface {
+type MessageController interface {
 	MessageSend(ctx *gin.Context)
 	Messages(ctx *gin.Context)
 }
 
-func NewMessageHandler() MessageHandler {
-	return &messageHandler{}
+func NewMessageHandler() MessageController {
+	return &messageController{}
 }
 
-func (m *messageHandler) MessageSend(ctx *gin.Context) {
-	var request model.SendMessageRequest
+func (m *messageController) MessageSend(ctx *gin.Context) {
+	var request request.SendMessageRequest
 	if err := ctx.ShouldBindJSON(&request); err != nil {
 		errors.ValidationError(ctx, err)
 		return
@@ -32,6 +32,6 @@ func (m *messageHandler) MessageSend(ctx *gin.Context) {
 	})
 }
 
-func (m *messageHandler) Messages(ctx *gin.Context) {
+func (m *messageController) Messages(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{})
 }

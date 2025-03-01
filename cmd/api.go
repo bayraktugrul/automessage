@@ -1,9 +1,9 @@
 package cmd
 
 import (
-	"automsg/pkg"
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -12,6 +12,11 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cobra"
+
+	"automsg/pkg"
+	"automsg/pkg/persistence"
+	"automsg/pkg/scheduler"
+	"automsg/pkg/service"
 )
 
 var autoMessageApi = &cobra.Command{
@@ -26,10 +31,25 @@ func init() {
 }
 
 func runApi(_ *cobra.Command, _ []string) error {
+
+	db, err := persistence.NewConnection()
+	if err != nil {
+		return fmt.Errorf("failed to connect to database: %v", err)
+	}
+	defer db.Close()
+
+	messageRepository := persistence.NewPostgresMessageRepository(db)
+	messageService := service.NewMessageService(messageRepository)
+
+	processSchedulerChan := make(chan bool)
+	messageScheduler := scheduler.NewMessageScheduler(messageService, 5*time.Second, 2, processSchedulerChan)
+
 	r := gin.New()
 	r.Use(gin.Recovery())
 
 	pkg.RegisterApi(r)
+
+	messageScheduler.Start()
 
 	server := http.Server{
 		ReadTimeout:  5 * time.Second,
@@ -39,7 +59,7 @@ func runApi(_ *cobra.Command, _ []string) error {
 	}
 
 	go func() {
-		fmt.Println("automsg listening on", server.Addr)
+		log.Println("listening on", server.Addr)
 		if err := server.ListenAndServe(); err != nil {
 			fmt.Println(err)
 			return
@@ -53,10 +73,13 @@ func runApi(_ *cobra.Command, _ []string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	fmt.Println("automessage api shutting down...")
+	log.Println("message scheduler is shutting down...")
+	messageScheduler.Stop()
+
+	log.Println("web server shutting down...")
 	if err := server.Shutdown(ctx); err != nil {
-		fmt.Println(err)
-		return err
+		return fmt.Errorf("server shutdown error: %v", err)
 	}
+
 	return nil
 }
