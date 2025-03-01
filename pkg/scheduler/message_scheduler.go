@@ -1,6 +1,7 @@
 package scheduler
 
 import (
+	"automsg/pkg/scheduler/observer"
 	"context"
 	"log"
 	"time"
@@ -9,24 +10,27 @@ import (
 )
 
 type MessageScheduler struct {
-	messageService       *service.MessageService
-	interval             time.Duration
-	batchSize            int
-	processSchedulerChan chan bool
-	doneChan             chan bool
+	messageService     service.MessageService
+	processingService  service.ProcessingService
+	observers          []observer.MessageObserver
+	interval           time.Duration
+	batchSize          int
+	processControlChan chan bool
+	observerChan       chan observer.Event
+	done               chan struct{}
 }
 
-func NewMessageScheduler(messageService *service.MessageService,
-	interval time.Duration,
-	batchSize int,
-	processSchedulerChan chan bool) *MessageScheduler {
+func NewMessageScheduler(config SchedulerConfig) *MessageScheduler {
 
 	return &MessageScheduler{
-		messageService:       messageService,
-		interval:             interval,
-		batchSize:            batchSize,
-		processSchedulerChan: processSchedulerChan,
-		doneChan:             make(chan bool),
+		messageService:     config.MessageService,
+		processingService:  config.ProcessingService,
+		interval:           config.Interval,
+		batchSize:          config.BatchSize,
+		observers:          config.Observers,
+		processControlChan: make(chan bool),
+		observerChan:       make(chan observer.Event, 100),
+		done:               make(chan struct{}),
 	}
 }
 
@@ -35,56 +39,61 @@ func (s *MessageScheduler) Start() {
 }
 
 func (s *MessageScheduler) Stop() {
-	s.doneChan <- true
+	s.processControlChan <- false
 }
 
 func (s *MessageScheduler) run() {
+	go s.notifyObservers()
+
 	ticker := time.NewTicker(s.interval)
 	defer ticker.Stop()
 
-	isRunning := true
+	shouldProcess := true
 	log.Println("Message scheduler is starting")
+
+	if err := s.processingService.ProcessMessages(context.Background(), s.batchSize, s.observerChan); err != nil {
+		log.Printf("Error during initial processing: %v", err)
+	}
 
 	for {
 		select {
-		case shouldRun, ok := <-s.processSchedulerChan:
+		case shouldRun, ok := <-s.processControlChan:
 			if !ok {
 				return
 			}
-			isRunning = shouldRun
+			shouldProcess = shouldRun
 			if shouldRun {
 				log.Println("Message scheduler processing started")
 			} else {
 				log.Println("Message scheduler processing paused")
 			}
-		case <-s.doneChan:
-			return
 		case <-ticker.C:
-			if !isRunning {
+			if !shouldProcess {
 				continue
 			}
-			if err := s.processUnsentMessages(); err != nil {
-				log.Printf("Error processing unsent messages: %v", err)
+
+			if err := s.processingService.ProcessMessages(context.Background(), s.batchSize, s.observerChan); err != nil {
+				continue
 			}
+
+		case <-s.done:
+			return
 		}
 	}
 }
 
-func (s *MessageScheduler) processUnsentMessages() error {
-	ctx := context.Background()
-	messages, err := s.messageService.GetUnsentMessages(ctx, s.batchSize)
-	if err != nil {
-		return err
-	}
-
-	for _, msg := range messages {
-		// TODO: Send message here to webhook url. Get webhook url from config later.
-		log.Printf("Processing message ID: %d, Content: %s, Recipient: %s", msg.ID, msg.Content, msg.RecipientPhone)
-		if err := s.messageService.MarkMessageAsSent(ctx, msg.ID); err != nil {
-			log.Printf("Error marking message %d as sent: %v", msg.ID, err)
-			continue
+func (s *MessageScheduler) notifyObservers() {
+	for {
+		select {
+		case evt := <-s.observerChan:
+			switch evt.Type {
+			case observer.EventMessageProcessed:
+				for _, observer := range s.observers {
+					observer.OnMessageProcessed(evt.Message.MessageID, evt.Message.Success)
+				}
+			}
+		case <-s.done:
+			return
 		}
 	}
-
-	return nil
 }

@@ -16,6 +16,7 @@ import (
 	"automsg/pkg"
 	"automsg/pkg/persistence"
 	"automsg/pkg/scheduler"
+	"automsg/pkg/scheduler/observer"
 	"automsg/pkg/service"
 )
 
@@ -31,7 +32,6 @@ func init() {
 }
 
 func runApi(_ *cobra.Command, _ []string) error {
-
 	db, err := persistence.NewConnection()
 	if err != nil {
 		return fmt.Errorf("failed to connect to database: %v", err)
@@ -40,17 +40,22 @@ func runApi(_ *cobra.Command, _ []string) error {
 
 	messageRepository := persistence.NewPostgresMessageRepository(db)
 	messageService := service.NewMessageService(messageRepository)
+	processingService := service.NewProcessingService(messageService)
+	monitor := &observer.LoggingObserver{}
 
-	processSchedulerChan := make(chan bool)
-	messageScheduler := scheduler.NewMessageScheduler(messageService, 5*time.Second, 2, processSchedulerChan)
+	schedulerConfig := scheduler.SchedulerConfig{
+		MessageService:    messageService,
+		ProcessingService: processingService,
+		Interval:          5 * time.Second,
+		BatchSize:         2,
+		Observers:         []observer.MessageObserver{monitor},
+	}
+	messageScheduler := scheduler.NewMessageScheduler(schedulerConfig)
+	messageScheduler.Start()
 
 	r := gin.New()
 	r.Use(gin.Recovery())
-
 	pkg.RegisterApi(r)
-
-	messageScheduler.Start()
-
 	server := http.Server{
 		ReadTimeout:  5 * time.Second,
 		WriteTimeout: 5 * time.Second,
