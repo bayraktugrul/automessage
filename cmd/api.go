@@ -14,6 +14,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"automsg/pkg"
+	"automsg/pkg/config"
 	"automsg/pkg/persistence"
 	"automsg/pkg/scheduler"
 	"automsg/pkg/scheduler/observer"
@@ -33,7 +34,9 @@ func init() {
 }
 
 func runApi(_ *cobra.Command, _ []string) error {
-	db, err := persistence.NewConnection()
+	rootConfig := config.LoadConfig()
+
+	db, err := persistence.NewConnection(rootConfig)
 	if err != nil {
 		return fmt.Errorf("failed to connect to database: %v", err)
 	}
@@ -41,15 +44,15 @@ func runApi(_ *cobra.Command, _ []string) error {
 
 	messageRepository := persistence.NewPostgresMessageRepository(db)
 	messageService := service.NewMessageService(messageRepository)
-	processingService := service.NewProcessingService(messageService)
+	processingService := service.NewProcessingService(messageService, rootConfig)
 	initialProcessing := strategy.NewInitialProcessingStrategy(messageService, processingService)
 	periodicProcessing := strategy.NewPeriodicProcessingStrategy(messageService, processingService)
 	monitor := &observer.LoggingObserver{}
 
 	schedulerConfig := scheduler.SchedulerConfig{
-		Interval:          5 * time.Second,
-		InitialBatchSize:  1,
-		PeriodicBatchSize: 2,
+		Interval:          rootConfig.App.MessageConfig.IntervalSecond,
+		InitialBatchSize:  rootConfig.App.MessageConfig.InitialBatchSize,
+		PeriodicBatchSize: rootConfig.App.MessageConfig.PeriodicBatchSize,
 		Observers:         []observer.MessageObserver{monitor},
 	}
 	messageScheduler := scheduler.NewMessageScheduler(initialProcessing, periodicProcessing, schedulerConfig)
@@ -62,7 +65,7 @@ func runApi(_ *cobra.Command, _ []string) error {
 		ReadTimeout:  5 * time.Second,
 		WriteTimeout: 5 * time.Second,
 		Handler:      r,
-		Addr:         ":8080",
+		Addr:         ":" + rootConfig.App.Port,
 	}
 
 	go func() {

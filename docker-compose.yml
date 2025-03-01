@@ -20,6 +20,10 @@ services:
       - REDIS_PORT=6379
       - REDIS_PASSWORD=
       - WEBHOOK_URL=https://webhook.site/your-webhook-id
+      - PORT=8080
+      - MESSAGE_INITIAL_BATCH_SIZE=10
+      - MESSAGE_PERIODIC_BATCH_SIZE=2
+      - MESSAGE_INTERVAL_SECONDS=120
     depends_on:
       - postgres
       - redis
