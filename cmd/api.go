@@ -17,6 +17,7 @@ import (
 	"automsg/pkg/persistence"
 	"automsg/pkg/scheduler"
 	"automsg/pkg/scheduler/observer"
+	"automsg/pkg/scheduler/strategy"
 	"automsg/pkg/service"
 )
 
@@ -41,16 +42,17 @@ func runApi(_ *cobra.Command, _ []string) error {
 	messageRepository := persistence.NewPostgresMessageRepository(db)
 	messageService := service.NewMessageService(messageRepository)
 	processingService := service.NewProcessingService(messageService)
+	initialProcessing := strategy.NewInitialProcessingStrategy(messageService, processingService)
+	periodicProcessing := strategy.NewPeriodicProcessingStrategy(messageService, processingService)
 	monitor := &observer.LoggingObserver{}
 
 	schedulerConfig := scheduler.SchedulerConfig{
-		MessageService:    messageService,
-		ProcessingService: processingService,
 		Interval:          5 * time.Second,
-		BatchSize:         2,
+		InitialBatchSize:  1,
+		PeriodicBatchSize: 2,
 		Observers:         []observer.MessageObserver{monitor},
 	}
-	messageScheduler := scheduler.NewMessageScheduler(schedulerConfig)
+	messageScheduler := scheduler.NewMessageScheduler(initialProcessing, periodicProcessing, schedulerConfig)
 	messageScheduler.Start()
 
 	r := gin.New()

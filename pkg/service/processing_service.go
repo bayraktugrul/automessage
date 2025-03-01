@@ -1,9 +1,9 @@
 package service
 
 import (
+	"automsg/pkg/model/document"
 	"automsg/pkg/scheduler/observer"
 	"context"
-	"log"
 )
 
 type processingService struct {
@@ -18,17 +18,10 @@ func NewProcessingService(messageService MessageService) ProcessingService {
 }
 
 type ProcessingService interface {
-	ProcessMessages(ctx context.Context, batchSize int, observerChan chan observer.Event) error
+	ProcessMessages(ctx context.Context, messages []document.Message, observerChan chan observer.Event) error
 }
 
-func (s *processingService) ProcessMessages(ctx context.Context, batchSize int, observerChan chan observer.Event) error {
-	log.Println("Message scheduler is processing")
-
-	messages, err := s.messageService.GetUnsentMessages(ctx, batchSize)
-	if err != nil {
-		return err
-	}
-
+func (s *processingService) ProcessMessages(ctx context.Context, messages []document.Message, observerChan chan observer.Event) (err error) {
 	for _, msg := range messages {
 		// TODO: Send external api here then check response here
 		if err := s.messageService.MarkMessageAsSent(ctx, msg.ID); err != nil {

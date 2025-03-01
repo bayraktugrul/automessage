@@ -2,32 +2,29 @@ package scheduler
 
 import (
 	"automsg/pkg/scheduler/observer"
+	"automsg/pkg/scheduler/strategy"
 	"context"
 	"log"
 	"time"
-
-	"automsg/pkg/service"
 )
 
 type MessageScheduler struct {
-	messageService     service.MessageService
-	processingService  service.ProcessingService
-	observers          []observer.MessageObserver
-	interval           time.Duration
-	batchSize          int
-	processControlChan chan bool
+	initialProcessing  strategy.ProcessingStrategy
+	periodicProcessing strategy.ProcessingStrategy
+	config             SchedulerConfig
 	observerChan       chan observer.Event
+	processControlChan chan bool
 	done               chan struct{}
 }
 
-func NewMessageScheduler(config SchedulerConfig) *MessageScheduler {
+func NewMessageScheduler(initialProcessing strategy.ProcessingStrategy,
+	periodicProcessing strategy.ProcessingStrategy,
+	config SchedulerConfig) *MessageScheduler {
 
 	return &MessageScheduler{
-		messageService:     config.MessageService,
-		processingService:  config.ProcessingService,
-		interval:           config.Interval,
-		batchSize:          config.BatchSize,
-		observers:          config.Observers,
+		initialProcessing:  initialProcessing,
+		periodicProcessing: periodicProcessing,
+		config:             config,
 		processControlChan: make(chan bool),
 		observerChan:       make(chan observer.Event, 100),
 		done:               make(chan struct{}),
@@ -45,24 +42,22 @@ func (s *MessageScheduler) Stop() {
 func (s *MessageScheduler) run() {
 	go s.notifyObservers()
 
-	ticker := time.NewTicker(s.interval)
+	ticker := time.NewTicker(s.config.Interval)
 	defer ticker.Stop()
 
-	shouldProcess := true
-	log.Println("Message scheduler is starting")
-
-	if err := s.processingService.ProcessMessages(context.Background(), s.batchSize, s.observerChan); err != nil {
+	if err := s.initialProcessing.Process(context.Background(), s.config.InitialBatchSize, s.observerChan); err != nil {
 		log.Printf("Error during initial processing: %v", err)
 	}
 
+	shouldProcess := true
 	for {
 		select {
-		case shouldRun, ok := <-s.processControlChan:
+		case run, ok := <-s.processControlChan:
 			if !ok {
 				return
 			}
-			shouldProcess = shouldRun
-			if shouldRun {
+			shouldProcess = run
+			if run {
 				log.Println("Message scheduler processing started")
 			} else {
 				log.Println("Message scheduler processing paused")
@@ -72,7 +67,7 @@ func (s *MessageScheduler) run() {
 				continue
 			}
 
-			if err := s.processingService.ProcessMessages(context.Background(), s.batchSize, s.observerChan); err != nil {
+			if err := s.periodicProcessing.Process(context.Background(), s.config.PeriodicBatchSize, s.observerChan); err != nil {
 				continue
 			}
 
@@ -88,7 +83,7 @@ func (s *MessageScheduler) notifyObservers() {
 		case evt := <-s.observerChan:
 			switch evt.Type {
 			case observer.EventMessageProcessed:
-				for _, observer := range s.observers {
+				for _, observer := range s.config.Observers {
 					observer.OnMessageProcessed(evt.Message.MessageID, evt.Message.Success)
 				}
 			}
