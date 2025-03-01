@@ -4,10 +4,10 @@ import "log"
 
 type LoggingObserver struct{}
 
-func (m *LoggingObserver) OnMessageProcessed(messageID int64, success bool) {
+func (m *LoggingObserver) OnMessageProcessed(messageID string, success bool, err error) {
 	if success {
-		log.Printf("Message %d processed successfully", messageID)
+		log.Printf("Message %s processed successfully", messageID)
 		return
 	}
-	log.Printf("Message %d processing failed.", messageID)
+	log.Printf("Message processing failed. err: %v", err)
 }

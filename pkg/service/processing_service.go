@@ -1,47 +1,60 @@
 package service
 
 import (
+	"automsg/pkg/client"
 	"automsg/pkg/config"
-	"automsg/pkg/model/document"
+	"automsg/pkg/model/dto"
 	"automsg/pkg/scheduler/observer"
 	"context"
-	"log"
 )
 
 type processingService struct {
 	messageService MessageService
+	messageClient  client.Client
 	rootConfig     config.RootConfig
 }
 
-func NewProcessingService(messageService MessageService, rootConfig config.RootConfig) ProcessingService {
+func NewProcessingService(messageService MessageService,
+	messageClient client.Client,
+	rootConfig config.RootConfig) ProcessingService {
 
 	return &processingService{
 		messageService: messageService,
+		messageClient:  messageClient,
 		rootConfig:     rootConfig,
 	}
 }
 
 type ProcessingService interface {
-	ProcessMessages(ctx context.Context, messages []document.Message, observerChan chan observer.Event) error
+	ProcessMessages(ctx context.Context, messages []dto.MessageProcessingDto, observerChan chan observer.Event) error
 }
 
-func (s *processingService) ProcessMessages(ctx context.Context, messages []document.Message, observerChan chan observer.Event) (err error) {
+func (s *processingService) ProcessMessages(ctx context.Context, messages []dto.MessageProcessingDto, observerChan chan observer.Event) (err error) {
 	for _, msg := range messages {
-		// TODO: Send external api here then check response here
-		if s.rootConfig.App.WebhookURL != "" {
-			log.Printf("Would send message to webhook: %s, message ID: %d", s.rootConfig.App.WebhookURL, msg.ID)
-		}
+		resp, err := s.messageClient.SendMessage(ctx, client.Request{
+			To:      msg.PhoneNumber,
+			Content: msg.Content,
+		})
 
-		if err := s.messageService.MarkMessageAsSent(ctx, msg.ID); err != nil {
+		if err != nil {
 			observerChan <- observer.Event{
 				Type:    observer.EventMessageProcessed,
-				Message: observer.Message{MessageID: msg.ID, Success: false},
+				Message: observer.Message{Success: false, Err: err},
 			}
 			continue
 		}
+
+		if err := s.messageService.MarkMessageAsSent(ctx, msg.Id, resp.MessageID); err != nil {
+			observerChan <- observer.Event{
+				Type:    observer.EventMessageProcessed,
+				Message: observer.Message{Success: false, Err: err},
+			}
+			continue
+		}
+
 		observerChan <- observer.Event{
 			Type:    observer.EventMessageProcessed,
-			Message: observer.Message{MessageID: msg.ID, Success: true},
+			Message: observer.Message{MessageID: resp.MessageID, Success: true},
 		}
 	}
 

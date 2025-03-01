@@ -1,11 +1,9 @@
 package service
 
 import (
-	"automsg/pkg/model/document"
-	"context"
-	"log"
-
+	"automsg/pkg/model/dto"
 	"automsg/pkg/persistence"
+	"context"
 )
 
 type messageService struct {
@@ -13,8 +11,8 @@ type messageService struct {
 }
 
 type MessageService interface {
-	GetUnsentMessages(ctx context.Context, limit int) ([]document.Message, error)
-	MarkMessageAsSent(ctx context.Context, messageID int64) error
+	GetUnsentMessages(ctx context.Context, limit int) ([]dto.MessageProcessingDto, error)
+	MarkMessageAsSent(ctx context.Context, id int64, messageID string) error
 }
 
 func NewMessageService(repository persistence.MessageRepository) MessageService {
@@ -24,11 +22,10 @@ func NewMessageService(repository persistence.MessageRepository) MessageService 
 	}
 }
 
-func (s *messageService) GetUnsentMessages(ctx context.Context, limit int) ([]document.Message, error) {
-	return s.repository.GetUnsentMessages(ctx, limit)
+func (s *messageService) GetUnsentMessages(ctx context.Context, limit int) ([]dto.MessageProcessingDto, error) {
+	return s.repository.GetUnsentProcessingMessages(ctx, limit)
 }
 
-func (s *messageService) MarkMessageAsSent(ctx context.Context, messageID int64) error {
-	log.Printf("message will be marked as sent, messageId: %d", messageID)
-	return s.repository.MarkMessageAsSent(ctx, messageID)
+func (s *messageService) MarkMessageAsSent(ctx context.Context, id int64, messageID string) error {
+	return s.repository.MarkMessageAsSent(ctx, id, messageID)
 }

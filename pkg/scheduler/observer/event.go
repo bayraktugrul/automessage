@@ -12,6 +12,7 @@ type Event struct {
 }
 
 type Message struct {
-	MessageID int64
+	MessageID string
 	Success   bool
+	Err       error
 }

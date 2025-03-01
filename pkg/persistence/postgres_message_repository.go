@@ -1,10 +1,11 @@
 package persistence
 
 import (
-	"automsg/pkg/model/document"
 	"context"
 	"database/sql"
 	"time"
+
+	"automsg/pkg/model/dto"
 )
 
 type PostgresMessageRepository struct {
@@ -17,12 +18,13 @@ func NewPostgresMessageRepository(db *sql.DB) MessageRepository {
 	}
 }
 
-func (r *PostgresMessageRepository) GetUnsentMessages(ctx context.Context, limit int) ([]document.Message, error) {
+func (r *PostgresMessageRepository) GetUnsentProcessingMessages(ctx context.Context, limit int) ([]dto.MessageProcessingDto, error) {
 	query := `
-		SELECT id, content, recipient_phone, is_sent, sent_at, created_at, updated_at
-		FROM messages
-		WHERE is_sent = false
-		ORDER BY created_at ASC
+		SELECT m.id, m.content,r.phone_number
+		FROM messages m
+		JOIN recipients r ON m.recipient_id = r.id
+		WHERE m.is_sent = false
+		ORDER BY m.created_at ASC
 		LIMIT $1
 	`
 
@@ -32,17 +34,13 @@ func (r *PostgresMessageRepository) GetUnsentMessages(ctx context.Context, limit
 	}
 	defer rows.Close()
 
-	var messages []document.Message
+	var messages []dto.MessageProcessingDto
 	for rows.Next() {
-		var msg document.Message
+		var msg dto.MessageProcessingDto
 		err := rows.Scan(
-			&msg.ID,
+			&msg.Id,
 			&msg.Content,
-			&msg.RecipientPhone,
-			&msg.IsSent,
-			&msg.SentAt,
-			&msg.CreatedAt,
-			&msg.UpdatedAt,
+			&msg.PhoneNumber,
 		)
 		if err != nil {
 			return nil, err
@@ -57,13 +55,13 @@ func (r *PostgresMessageRepository) GetUnsentMessages(ctx context.Context, limit
 	return messages, nil
 }
 
-func (r *PostgresMessageRepository) MarkMessageAsSent(ctx context.Context, messageID int64) error {
+func (r *PostgresMessageRepository) MarkMessageAsSent(ctx context.Context, id int64, messageID string) error {
 	query := `
 		UPDATE messages
-		SET is_sent = true, sent_at = $1, updated_at = $1
-		WHERE id = $2
+		SET is_sent = true, message_id= $1, sent_at = $2, updated_at = $2
+		WHERE id = $3
 	`
 
-	_, err := r.db.ExecContext(ctx, query, time.Now(), messageID)
+	_, err := r.db.ExecContext(ctx, query, messageID, time.Now(), id)
 	return err
 }

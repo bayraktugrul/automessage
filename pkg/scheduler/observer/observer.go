@@ -1,5 +1,5 @@
 package observer
 
 type MessageObserver interface {
-	OnMessageProcessed(messageID int64, success bool)
+	OnMessageProcessed(messageID string, success bool, err error)
 }

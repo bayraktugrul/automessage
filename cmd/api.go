@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"automsg/pkg/client"
 	"context"
 	"fmt"
 	"log"
@@ -44,7 +45,8 @@ func runApi(_ *cobra.Command, _ []string) error {
 
 	messageRepository := persistence.NewPostgresMessageRepository(db)
 	messageService := service.NewMessageService(messageRepository)
-	processingService := service.NewProcessingService(messageService, rootConfig)
+	messageClient := client.New(rootConfig.App.WebhookURL)
+	processingService := service.NewProcessingService(messageService, messageClient, rootConfig)
 	initialProcessing := strategy.NewInitialProcessingStrategy(messageService, processingService)
 	periodicProcessing := strategy.NewPeriodicProcessingStrategy(messageService, processingService)
 	monitor := &observer.LoggingObserver{}

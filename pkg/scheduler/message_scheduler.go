@@ -84,7 +84,7 @@ func (s *MessageScheduler) notifyObservers() {
 			switch evt.Type {
 			case observer.EventMessageProcessed:
 				for _, observer := range s.config.Observers {
-					observer.OnMessageProcessed(evt.Message.MessageID, evt.Message.Success)
+					observer.OnMessageProcessed(evt.Message.MessageID, evt.Message.Success, evt.Message.Err)
 				}
 			}
 		case <-s.done:

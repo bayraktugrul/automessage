@@ -1,11 +1,11 @@
 package persistence
 
 import (
-	"automsg/pkg/model/document"
+	"automsg/pkg/model/dto"
 	"context"
 )
 
 type MessageRepository interface {
-	GetUnsentMessages(ctx context.Context, limit int) ([]document.Message, error)
-	MarkMessageAsSent(ctx context.Context, messageID int64) error
+	GetUnsentProcessingMessages(ctx context.Context, limit int) ([]dto.MessageProcessingDto, error)
+	MarkMessageAsSent(ctx context.Context, id int64, messageID string) error
 }
