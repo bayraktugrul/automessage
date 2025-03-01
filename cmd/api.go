@@ -1,15 +1,17 @@
 package cmd
 
 import (
+	"automsg/pkg"
 	"context"
 	"fmt"
-	"github.com/gin-gonic/gin"
-	"github.com/spf13/cobra"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/spf13/cobra"
 )
 
 var autoMessageApi = &cobra.Command{
@@ -24,9 +26,10 @@ func init() {
 }
 
 func runApi(_ *cobra.Command, _ []string) error {
-
 	r := gin.New()
 	r.Use(gin.Recovery())
+
+	pkg.RegisterApi(r)
 
 	server := http.Server{
 		ReadTimeout:  5 * time.Second,
