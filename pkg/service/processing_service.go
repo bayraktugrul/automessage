@@ -26,10 +26,10 @@ func NewProcessingService(messageService MessageService,
 }
 
 type ProcessingService interface {
-	ProcessMessages(ctx context.Context, messages []dto.MessageProcessingDto, observerChan chan observer.Event) error
+	ProcessMessages(ctx context.Context, messages []dto.MessageProcessingDto, observerChan chan<- observer.Event) error
 }
 
-func (s *processingService) ProcessMessages(ctx context.Context, messages []dto.MessageProcessingDto, observerChan chan observer.Event) (err error) {
+func (s *processingService) ProcessMessages(ctx context.Context, messages []dto.MessageProcessingDto, observerChan chan<- observer.Event) (err error) {
 	for _, msg := range messages {
 		resp, err := s.messageClient.SendMessage(ctx, client.Request{
 			To:      msg.PhoneNumber,

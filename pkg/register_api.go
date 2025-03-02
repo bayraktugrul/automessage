@@ -6,8 +6,9 @@ import (
 	"net/http"
 )
 
-func RegisterApi(r *gin.Engine) {
-	messageHandler := controller.NewMessageHandler()
+func RegisterApi(r *gin.Engine, processControlChan chan bool) {
+
+	messageHandler := controller.NewMessageHandler(processControlChan)
 
 	r.GET("/live", func(c *gin.Context) { c.JSON(http.StatusOK, "Healthy") })
 	r.GET("/messages", messageHandler.Messages)

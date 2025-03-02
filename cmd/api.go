@@ -51,18 +51,20 @@ func runApi(_ *cobra.Command, _ []string) error {
 	periodicProcessing := strategy.NewPeriodicProcessingStrategy(messageService, processingService)
 	monitor := &observer.LoggingObserver{}
 
+	processControlChan := make(chan bool)
 	schedulerConfig := scheduler.SchedulerConfig{
-		Interval:          rootConfig.App.MessageConfig.IntervalSecond,
-		InitialBatchSize:  rootConfig.App.MessageConfig.InitialBatchSize,
-		PeriodicBatchSize: rootConfig.App.MessageConfig.PeriodicBatchSize,
-		Observers:         []observer.MessageObserver{monitor},
+		Interval:           rootConfig.App.MessageConfig.IntervalSecond,
+		InitialBatchSize:   rootConfig.App.MessageConfig.InitialBatchSize,
+		PeriodicBatchSize:  rootConfig.App.MessageConfig.PeriodicBatchSize,
+		ProcessControlChan: processControlChan,
+		Observers:          []observer.MessageObserver{monitor},
 	}
 	messageScheduler := scheduler.NewMessageScheduler(initialProcessing, periodicProcessing, schedulerConfig)
 	messageScheduler.Start()
 
 	r := gin.New()
 	r.Use(gin.Recovery())
-	pkg.RegisterApi(r)
+	pkg.RegisterApi(r, processControlChan)
 	server := http.Server{
 		ReadTimeout:  5 * time.Second,
 		WriteTimeout: 5 * time.Second,

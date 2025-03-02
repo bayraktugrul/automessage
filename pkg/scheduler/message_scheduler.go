@@ -13,7 +13,6 @@ type MessageScheduler struct {
 	periodicProcessing strategy.ProcessingStrategy
 	config             SchedulerConfig
 	observerChan       chan observer.Event
-	processControlChan chan bool
 	done               chan struct{}
 }
 
@@ -25,7 +24,6 @@ func NewMessageScheduler(initialProcessing strategy.ProcessingStrategy,
 		initialProcessing:  initialProcessing,
 		periodicProcessing: periodicProcessing,
 		config:             config,
-		processControlChan: make(chan bool),
 		observerChan:       make(chan observer.Event, 100),
 		done:               make(chan struct{}),
 	}
@@ -36,7 +34,7 @@ func (s *MessageScheduler) Start() {
 }
 
 func (s *MessageScheduler) Stop() {
-	s.processControlChan <- false
+	s.config.ProcessControlChan <- false
 }
 
 func (s *MessageScheduler) run() {
@@ -52,7 +50,7 @@ func (s *MessageScheduler) run() {
 	shouldProcess := true
 	for {
 		select {
-		case run, ok := <-s.processControlChan:
+		case run, ok := <-s.config.ProcessControlChan:
 			if !ok {
 				return
 			}

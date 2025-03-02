@@ -8,7 +8,14 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+const (
+	start = "START"
+	stop  = "STOP"
+)
+
 type messageController struct {
+	processControlChan chan<- bool
+	processMap         map[string]bool
 }
 
 type MessageController interface {
@@ -16,8 +23,14 @@ type MessageController interface {
 	Messages(ctx *gin.Context)
 }
 
-func NewMessageHandler() MessageController {
-	return &messageController{}
+func NewMessageHandler(processControlChan chan<- bool) MessageController {
+	return &messageController{
+		processControlChan: processControlChan,
+		processMap: map[string]bool{
+			start: true,
+			stop:  false,
+		},
+	}
 }
 
 func (m *messageController) MessageSend(ctx *gin.Context) {
@@ -26,6 +39,8 @@ func (m *messageController) MessageSend(ctx *gin.Context) {
 		errors.ValidationError(ctx, err)
 		return
 	}
+
+	m.processControlChan <- m.processMap[request.Operation]
 
 	ctx.JSON(http.StatusOK, gin.H{
 		"operation": request.Operation,

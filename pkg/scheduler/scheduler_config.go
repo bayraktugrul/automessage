@@ -6,8 +6,9 @@ import (
 )
 
 type SchedulerConfig struct {
-	Interval          time.Duration
-	Observers         []observer.MessageObserver
-	InitialBatchSize  int
-	PeriodicBatchSize int
+	Interval           time.Duration
+	Observers          []observer.MessageObserver
+	ProcessControlChan chan bool
+	InitialBatchSize   int
+	PeriodicBatchSize  int
 }
