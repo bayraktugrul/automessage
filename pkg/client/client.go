@@ -1,3 +1,4 @@
+//go:generate go run go.uber.org/mock/mockgen -destination=../../mocks/client_mock.go -package=mocks automsg/pkg/client Client
 package client
 
 import (

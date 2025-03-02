@@ -1,3 +1,4 @@
+//go:generate go run go.uber.org/mock/mockgen -destination=../../mocks/message_repository_mock.go -package=mocks automsg/pkg/persistence MessageRepository
 package persistence
 
 import (

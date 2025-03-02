@@ -1,3 +1,4 @@
+//go:generate go run go.uber.org/mock/mockgen -destination=../../mocks/message_service_mock.go -package=mocks automsg/pkg/service MessageService
 package service
 
 import (
