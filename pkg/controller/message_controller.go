@@ -26,7 +26,7 @@ type MessageController interface {
 	Messages(ctx *gin.Context)
 }
 
-func New(processControlChan chan<- bool,
+func NewMessage(processControlChan chan<- bool,
 	messageService service.MessageService) MessageController {
 
 	return &messageController{
@@ -39,6 +39,16 @@ func New(processControlChan chan<- bool,
 	}
 }
 
+// MessageSend godoc
+// @Summary Send message operation
+// @Description Start or stop the message sending process
+// @Tags messages
+// @Accept json
+// @Produce json
+// @Param operation body request.SendMessageRequest true "Operation details"
+// @Success 200 {object} map[string]interface{} "{"operation": "START"} or {"operation": "STOP"}"
+// @Failure 400 {object} errors.ErrorResponse "Validation error response"
+// @Router /send [put]
 func (m *messageController) MessageSend(ctx *gin.Context) {
 	var request request.SendMessageRequest
 	if err := ctx.ShouldBindJSON(&request); err != nil {
@@ -53,6 +63,17 @@ func (m *messageController) MessageSend(ctx *gin.Context) {
 	})
 }
 
+// Messages godoc
+// @Summary Get sent messages
+// @Description Get a paginated list of sent messages
+// @Tags messages
+// @Accept json
+// @Produce json
+// @Param page query int false "Page number (default: 1)" minimum(1)
+// @Param pageSize query int false "Page size (default: 10)" minimum(1) maximum(100)
+// @Success 200 {object} response.PaginatedResponse
+// @Failure 500 {object} errors.ErrorResponse "Internal server error response"
+// @Router /messages [get]
 func (m *messageController) Messages(ctx *gin.Context) {
 	var req request.GetMessagesRequest
 
