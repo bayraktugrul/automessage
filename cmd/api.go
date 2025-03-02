@@ -64,7 +64,7 @@ func runApi(_ *cobra.Command, _ []string) error {
 
 	r := gin.New()
 	r.Use(gin.Recovery())
-	pkg.RegisterApi(r, processControlChan)
+	pkg.RegisterApi(r, processControlChan, messageService)
 	server := http.Server{
 		ReadTimeout:  5 * time.Second,
 		WriteTimeout: 5 * time.Second,

@@ -8,17 +8,17 @@ import (
 	"automsg/pkg/model/dto"
 )
 
-type PostgresMessageRepository struct {
+type postgresMessageRepository struct {
 	db *sql.DB
 }
 
 func NewPostgresMessageRepository(db *sql.DB) MessageRepository {
-	return &PostgresMessageRepository{
+	return &postgresMessageRepository{
 		db: db,
 	}
 }
 
-func (r *PostgresMessageRepository) GetUnsentProcessingMessages(ctx context.Context, limit int) ([]dto.MessageProcessingDto, error) {
+func (r *postgresMessageRepository) GetUnsentProcessingMessages(ctx context.Context, limit int) ([]dto.MessageProcessingDto, error) {
 	query := `
 		SELECT m.id, m.content,r.phone_number
 		FROM messages m
@@ -37,11 +37,7 @@ func (r *PostgresMessageRepository) GetUnsentProcessingMessages(ctx context.Cont
 	var messages []dto.MessageProcessingDto
 	for rows.Next() {
 		var msg dto.MessageProcessingDto
-		err := rows.Scan(
-			&msg.Id,
-			&msg.Content,
-			&msg.PhoneNumber,
-		)
+		err := rows.Scan(&msg.Id, &msg.Content, &msg.PhoneNumber)
 		if err != nil {
 			return nil, err
 		}
@@ -55,13 +51,64 @@ func (r *PostgresMessageRepository) GetUnsentProcessingMessages(ctx context.Cont
 	return messages, nil
 }
 
-func (r *PostgresMessageRepository) MarkMessageAsSent(ctx context.Context, id int64, messageID string) error {
+func (r *postgresMessageRepository) MarkMessageAsSent(ctx context.Context, id int64, messageID string) error {
 	query := `
 		UPDATE messages
 		SET is_sent = true, message_id= $1, sent_at = $2, updated_at = $2
 		WHERE id = $3
 	`
-
 	_, err := r.db.ExecContext(ctx, query, messageID, time.Now(), id)
 	return err
+}
+
+func (r *postgresMessageRepository) GetSentMessages(ctx context.Context, page, pageSize int) ([]dto.MessageDto, int, error) {
+	offset := (page - 1) * pageSize
+
+	var totalCount int
+	countQuery := `
+		SELECT COUNT(*)
+		FROM messages m
+		JOIN recipients r ON m.recipient_id = r.id
+		WHERE m.is_sent = true
+	`
+	err := r.db.QueryRowContext(ctx, countQuery).Scan(&totalCount)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	query := `
+		SELECT 
+			m.sent_at, 
+			m.message_id
+		FROM messages m
+		JOIN recipients r ON m.recipient_id = r.id
+		WHERE m.is_sent = true
+		ORDER BY m.sent_at DESC
+		LIMIT $1 OFFSET $2
+	`
+	rows, err := r.db.QueryContext(ctx, query, pageSize, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var messages []dto.MessageDto
+	for rows.Next() {
+		var msg dto.MessageDto
+		var messageId sql.NullString
+		err := rows.Scan(&msg.SentAt, &messageId)
+		if err != nil {
+			return nil, 0, err
+		}
+
+		if messageId.Valid {
+			msg.MessageId = messageId.String
+		}
+		messages = append(messages, msg)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, 0, err
+	}
+
+	return messages, totalCount, nil
 }
