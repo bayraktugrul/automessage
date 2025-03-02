@@ -19,7 +19,7 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=
-      - WEBHOOK_URL=https://webhook.site/aafe0079-bd44-4e40-ac99-b130f87b4a78
+      - WEBHOOK_URL=https://webhook.site/1512e552-6fb9-4dfa-94a3-2661062bcbf2
       - PORT=8080
       - MESSAGE_INITIAL_BATCH_SIZE=10
       - MESSAGE_PERIODIC_BATCH_SIZE=2

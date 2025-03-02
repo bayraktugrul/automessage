@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"automsg/pkg/client"
 	"context"
 	"fmt"
 	"log"
@@ -15,6 +14,8 @@ import (
 	"github.com/spf13/cobra"
 
 	"automsg/pkg"
+	"automsg/pkg/cache"
+	"automsg/pkg/client"
 	"automsg/pkg/config"
 	"automsg/pkg/persistence"
 	"automsg/pkg/scheduler"
@@ -49,7 +50,14 @@ func runApi(_ *cobra.Command, _ []string) error {
 	processingService := service.NewProcessingService(messageService, messageClient, rootConfig)
 	initialProcessing := strategy.NewInitialProcessingStrategy(messageService, processingService)
 	periodicProcessing := strategy.NewPeriodicProcessingStrategy(messageService, processingService)
-	monitor := &observer.LoggingObserver{}
+
+	monitor := observer.NewLoggingObserver()
+
+	redisClient, err := cache.NewRedisClient(rootConfig.Redis)
+	if err != nil {
+		return fmt.Errorf("failed to connect redis: %v", err)
+	}
+	cachingObserver := observer.NewCachingObserver(redisClient)
 
 	processControlChan := make(chan bool)
 	schedulerConfig := scheduler.SchedulerConfig{
@@ -57,7 +65,7 @@ func runApi(_ *cobra.Command, _ []string) error {
 		InitialBatchSize:   rootConfig.App.MessageConfig.InitialBatchSize,
 		PeriodicBatchSize:  rootConfig.App.MessageConfig.PeriodicBatchSize,
 		ProcessControlChan: processControlChan,
-		Observers:          []observer.MessageObserver{monitor},
+		Observers:          []observer.MessageObserver{monitor, cachingObserver},
 	}
 	messageScheduler := scheduler.NewMessageScheduler(initialProcessing, periodicProcessing, schedulerConfig)
 	messageScheduler.Start()

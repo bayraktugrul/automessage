@@ -1,10 +1,16 @@
 package observer
 
-import "log"
+import (
+	"log"
+)
 
-type LoggingObserver struct{}
+type loggingObserver struct{}
 
-func (m *LoggingObserver) OnMessageProcessed(messageID string, success bool, err error) {
+func NewLoggingObserver() MessageObserver {
+	return &loggingObserver{}
+}
+
+func (m *loggingObserver) OnMessageProcessed(messageID string, success bool, err error) {
 	if success {
 		log.Printf("Message %s processed successfully", messageID)
 		return
