@@ -12,10 +12,6 @@ type initialProcessingStrategy struct {
 	processingService service.ProcessingService
 }
 
-type ProcessingStrategy interface {
-	Process(ctx context.Context, batchSize int, observerChan chan observer.Event) error
-}
-
 func NewInitialProcessingStrategy(messageService service.MessageService,
 	processingService service.ProcessingService) ProcessingStrategy {
 

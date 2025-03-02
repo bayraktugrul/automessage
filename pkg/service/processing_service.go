@@ -1,3 +1,4 @@
+//go:generate go run go.uber.org/mock/mockgen -destination=../../../mocks/processing_service_mock.go -package=mocks automsg/pkg/service ProcessingService
 package service
 
 import (
@@ -15,6 +16,10 @@ type processingService struct {
 	rootConfig     config.RootConfig
 }
 
+type ProcessingService interface {
+	ProcessMessages(ctx context.Context, messages []dto.MessageProcessingDto, observerChan chan<- observer.Event) error
+}
+
 func NewProcessingService(messageService MessageService,
 	messageClient client.Client,
 	rootConfig config.RootConfig) ProcessingService {
@@ -24,10 +29,6 @@ func NewProcessingService(messageService MessageService,
 		messageClient:  messageClient,
 		rootConfig:     rootConfig,
 	}
-}
-
-type ProcessingService interface {
-	ProcessMessages(ctx context.Context, messages []dto.MessageProcessingDto, observerChan chan<- observer.Event) error
 }
 
 func (p *processingService) ProcessMessages(ctx context.Context, messages []dto.MessageProcessingDto, observerChan chan<- observer.Event) (err error) {
