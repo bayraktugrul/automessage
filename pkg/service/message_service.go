@@ -5,6 +5,7 @@ import (
 	"automsg/pkg/model/response"
 	"automsg/pkg/persistence"
 	"context"
+	"database/sql"
 )
 
 type messageService struct {
@@ -13,8 +14,11 @@ type messageService struct {
 
 type MessageService interface {
 	GetUnsentMessages(ctx context.Context, limit int) ([]dto.MessageProcessingDto, error)
-	MarkMessageAsSent(ctx context.Context, id int64, messageID string) error
 	GetSentMessages(ctx context.Context, page, pageSize int) ([]response.MessageResponse, int, error)
+
+	BeginTx(ctx context.Context) (*sql.Tx, error)
+	LockMessageForProcessing(ctx context.Context, tx *sql.Tx, id int64) (bool, error)
+	MarkMessageAsSentTx(ctx context.Context, tx *sql.Tx, id int64, messageID string) error
 }
 
 func NewMessageService(repository persistence.MessageRepository) MessageService {
@@ -27,10 +31,6 @@ func (s *messageService) GetUnsentMessages(ctx context.Context, limit int) ([]dt
 	return s.repository.GetUnsentProcessingMessages(ctx, limit)
 }
 
-func (s *messageService) MarkMessageAsSent(ctx context.Context, id int64, messageID string) error {
-	return s.repository.MarkMessageAsSent(ctx, id, messageID)
-}
-
 func (s *messageService) GetSentMessages(ctx context.Context, page, pageSize int) ([]response.MessageResponse, int, error) {
 	messageDtos, totalCount, err := s.repository.GetSentMessages(ctx, page, pageSize)
 	if err != nil {
@@ -38,9 +38,21 @@ func (s *messageService) GetSentMessages(ctx context.Context, page, pageSize int
 	}
 
 	result := make([]response.MessageResponse, 0)
-	for _, messageDto := range messageDtos {
-		result = append(result, messageDto.ToResponse())
+	for i := range messageDtos {
+		result = append(result, messageDtos[i].ToResponse())
 	}
 
 	return result, totalCount, nil
+}
+
+func (s *messageService) BeginTx(ctx context.Context) (*sql.Tx, error) {
+	return s.repository.BeginTx(ctx)
+}
+
+func (s *messageService) LockMessageForProcessing(ctx context.Context, tx *sql.Tx, id int64) (bool, error) {
+	return s.repository.LockMessageForProcessing(ctx, tx, id)
+}
+
+func (s *messageService) MarkMessageAsSentTx(ctx context.Context, tx *sql.Tx, id int64, messageID string) error {
+	return s.repository.MarkMessageAsSentTx(ctx, tx, id, messageID)
 }

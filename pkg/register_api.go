@@ -10,7 +10,7 @@ import (
 
 func RegisterApi(r *gin.Engine, processControlChan chan bool, messageService service.MessageService) {
 
-	messageHandler := controller.NewMessageHandler(processControlChan, messageService)
+	messageHandler := controller.New(processControlChan, messageService)
 
 	r.GET("/live", func(c *gin.Context) { c.JSON(http.StatusOK, "Healthy") })
 	r.GET("/messages", messageHandler.Messages)

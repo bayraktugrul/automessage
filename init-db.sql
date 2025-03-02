@@ -29,11 +29,13 @@ VALUES
     ('+905551234567', 'Recipient 1', NOW(), NOW()),
     ('+905551234568', 'Recipient 2', NOW(), NOW()),
     ('+905551234569', 'Recipient 3', NOW(), NOW()),
-    ('+905551234570', 'Recipient 4', NOW(), NOW());
+    ('+905551234570', 'Recipient 4', NOW(), NOW()),
+    ('+905551234571', 'Recipient 5', NOW(), NOW());
 
 INSERT INTO messages (content, recipient_id, is_sent, sent_at, created_at, updated_at)
 VALUES 
     ('test message 1', 1, false, '2025-03-01 21:55:52', '2025-03-01 21:55:52', '2025-03-01 21:55:52'),
     ('test message 2', 1, false, NULL, '2025-03-01 21:55:52', '2025-03-01 21:55:52'),
     ('test message 3', 3, true, '2025-03-01 21:55:52', '2025-03-01 21:55:52', '2025-03-01 21:55:52'),
-    ('test message 4', 4, false, '2025-03-01 21:55:52', '2025-03-01 21:55:52', '2025-03-01 21:55:52');
+    ('test message 4', 4, false, '2025-03-01 21:55:52', '2025-03-01 21:55:52', '2025-03-01 21:55:52'),
+    ('test message 5', 5, false, '2025-03-01 21:55:52', '2025-03-01 21:55:52', '2025-03-01 21:55:52');

@@ -3,6 +3,8 @@ package persistence
 import (
 	"context"
 	"database/sql"
+	"errors"
+	"fmt"
 	"time"
 
 	"automsg/pkg/model/dto"
@@ -49,16 +51,6 @@ func (r *postgresMessageRepository) GetUnsentProcessingMessages(ctx context.Cont
 	}
 
 	return messages, nil
-}
-
-func (r *postgresMessageRepository) MarkMessageAsSent(ctx context.Context, id int64, messageID string) error {
-	query := `
-		UPDATE messages
-		SET is_sent = true, message_id= $1, sent_at = $2, updated_at = $2
-		WHERE id = $3
-	`
-	_, err := r.db.ExecContext(ctx, query, messageID, time.Now(), id)
-	return err
 }
 
 func (r *postgresMessageRepository) GetSentMessages(ctx context.Context, page, pageSize int) ([]dto.MessageDto, int, error) {
@@ -111,4 +103,35 @@ func (r *postgresMessageRepository) GetSentMessages(ctx context.Context, page, p
 	}
 
 	return messages, totalCount, nil
+}
+
+func (r *postgresMessageRepository) BeginTx(ctx context.Context) (*sql.Tx, error) {
+	return r.db.BeginTx(ctx, &sql.TxOptions{
+		Isolation: sql.LevelReadCommitted,
+	})
+}
+
+func (r *postgresMessageRepository) LockMessageForProcessing(ctx context.Context, tx *sql.Tx, id int64) (bool, error) {
+	query := `
+		SELECT id FROM messages WHERE id = $1 AND is_sent = false FOR UPDATE SKIP LOCKED
+	`
+	var messageID int64
+	err := tx.QueryRowContext(ctx, query, id).Scan(&messageID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("failed to lock message: %w", err)
+	}
+	return true, nil
+}
+
+func (r *postgresMessageRepository) MarkMessageAsSentTx(ctx context.Context, tx *sql.Tx, id int64, messageID string) error {
+	query := `
+		UPDATE messages
+		SET is_sent = true, message_id = $1, sent_at = $2, updated_at = $2
+		WHERE id = $3
+	`
+	_, err := tx.ExecContext(ctx, query, messageID, time.Now(), id)
+	return err
 }

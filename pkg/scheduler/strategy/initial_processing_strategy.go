@@ -36,6 +36,9 @@ func (i *initialProcessingStrategy) Process(ctx context.Context, batchSize int, 
 			return nil
 		}
 
-		return i.processingService.ProcessMessages(ctx, messages, observerChan)
+		err = i.processingService.ProcessMessages(ctx, messages, observerChan)
+		if err != nil {
+			return err
+		}
 	}
 }

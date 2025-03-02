@@ -26,7 +26,7 @@ type MessageController interface {
 	Messages(ctx *gin.Context)
 }
 
-func NewMessageHandler(processControlChan chan<- bool,
+func New(processControlChan chan<- bool,
 	messageService service.MessageService) MessageController {
 
 	return &messageController{
